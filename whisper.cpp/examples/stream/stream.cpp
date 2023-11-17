@@ -45,8 +45,8 @@ struct whisper_params {
     bool translate     = false;
     bool no_fallback   = false;
     bool print_special = false;
-    bool no_context    = true;
-    bool no_timestamps = false;
+    bool no_context    = true; // 얘는 뭘까
+    bool no_timestamps = false; // Time Stamp 인듯
     bool tinydiarize   = false;
     bool save_audio    = false; // save audio to wav file
     bool use_gpu       = true;
@@ -137,16 +137,20 @@ int main(int argc, char ** argv) {
     params.length_ms = std::max(params.length_ms, params.step_ms);
 
     const int n_samples_step = (1e-3*params.step_ms  )*WHISPER_SAMPLE_RATE;
+    // eg 10^(-3)*4000*WHISPER_SAMPLE_RATE[16000]
     const int n_samples_len  = (1e-3*params.length_ms)*WHISPER_SAMPLE_RATE;
     const int n_samples_keep = (1e-3*params.keep_ms  )*WHISPER_SAMPLE_RATE;
     const int n_samples_30s  = (1e-3*30000.0         )*WHISPER_SAMPLE_RATE;
-
+    // 30초 동안 30*16000개의 샘플
     const bool use_vad = n_samples_step <= 0; // sliding window mode uses VAD
-
+    //뭔지 모르겠지만 step_ms가 존재하면 False
     const int n_new_line = !use_vad ? std::max(1, params.length_ms / params.step_ms - 1) : 1; // number of steps to print new line
+    // step ms가 존재할때 new line의 갯수는 전체길이 / step 길이
 
     params.no_timestamps  = !use_vad;
+    // step ms가 존재하면 True
     params.no_context    |= use_vad;
+    // no_context ==True, use_vad == True 둘중 하나를 만족할 때
     params.max_tokens     = 0;
 
     // init audio
@@ -158,6 +162,7 @@ int main(int argc, char ** argv) {
     }
 
     audio.resume();
+    //  Starts capturing audio using SDL callback.
 
     // whisper init
     if (params.language != "auto" && whisper_lang_id(params.language.c_str()) == -1){
@@ -170,6 +175,7 @@ int main(int argc, char ** argv) {
     cparams.use_gpu = params.use_gpu;
 
     struct whisper_context * ctx = whisper_init_from_file_with_params(params.model.c_str(), cparams);
+    // initialize 모델과 GPU설정
 
     std::vector<float> pcmf32    (n_samples_30s, 0.0f);
     std::vector<float> pcmf32_old;
@@ -180,6 +186,7 @@ int main(int argc, char ** argv) {
     // print some info about the processing
     {
         fprintf(stderr, "\n");
+        //multilingual 이 아니라면!
         if (!whisper_is_multilingual(ctx)) {
             if (params.language != "en" || params.translate) {
                 params.language = "en";
@@ -211,6 +218,8 @@ int main(int argc, char ** argv) {
 
     bool is_running = true;
 
+    // output file 인데 용도 불분명
+
     std::ofstream fout;
     if (params.fname_out.length() > 0) {
         fout.open(params.fname_out);
@@ -221,7 +230,7 @@ int main(int argc, char ** argv) {
     }
 
     wav_writer wavWriter;
-    // save wav file
+    // save wav file 전체 내용을 저장하는듯?
     if (params.save_audio) {
         // Get current date/time for filename
         time_t now = time(0);
@@ -235,6 +244,7 @@ int main(int argc, char ** argv) {
     fflush(stdout);
 
     auto t_last  = std::chrono::high_resolution_clock::now();
+    //-> a timestamp representing the current time.
     const auto t_start = t_last;
 
     // main audio loop
